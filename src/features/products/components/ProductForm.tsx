@@ -1,0 +1,144 @@
+import { Loader2 } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { toast } from 'sonner';
+import { Button, ErrorNotice, Field, Input, MoneyInput, Select } from '@/components/ui';
+import { useBusinessProfile } from '@/features/settings/api';
+import { errorMessage } from '@/lib/format';
+import { compressImage } from '@/lib/image';
+import type { Product } from '@/lib/types';
+import { useCategories, useProductPhoto, useSaveProduct } from '../api';
+import { PhotoField, type PhotoChoice } from './PhotoField';
+
+/** Create (no `product`) or edit a product. Opening stock only exists on create; later changes are stock adjustments. */
+export function ProductForm({ product, onDone }: { product?: Product; onDone: () => void }) {
+  const categories = useCategories();
+  const save = useSaveProduct(product?.id);
+  const photoApi = useProductPhoto();
+  const imagesEnabled = useBusinessProfile().data?.imagesEnabled ?? false;
+  const [photo, setPhoto] = useState<PhotoChoice>({ kind: 'none' });
+  const [uploading, setUploading] = useState(false);
+  const [f, setF] = useState({
+    name: product?.name ?? '',
+    sku: product?.sku ?? '',
+    barcode: product?.barcode ?? '',
+    categoryId: product?.categoryId ?? '',
+    unit: product?.unit ?? 'pcs',
+    allowsFraction: product?.allowsFraction ?? false,
+    reorderLevel: String(product?.reorderLevel ?? 0),
+    openingStock: '0',
+    active: product?.active ?? true,
+  });
+  const [price, setPrice] = useState<number | null>(product?.priceCents ?? null);
+  const [cost, setCost] = useState<number | null>(product?.costCents ?? 0);
+  const [error, setError] = useState<string | null>(null);
+  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => setF((s) => ({ ...s, [k]: v }));
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    if (price === null) return setError('Enter a valid selling price, e.g. 350 or 350.50');
+    if (cost === null) return setError('Enter a valid cost price, e.g. 200 or 200.50');
+    const reorder = Number(f.reorderLevel);
+    const opening = Number(f.openingStock);
+    if (!Number.isFinite(reorder) || reorder < 0) return setError('Reorder level must be zero or more');
+    if (!product && (!Number.isFinite(opening) || opening < 0)) return setError('Opening stock must be zero or more');
+    setError(null);
+    save.mutate(
+      {
+        name: f.name.trim(),
+        sku: f.sku.trim(),
+        barcode: f.barcode.trim() || null,
+        categoryId: f.categoryId || null,
+        unit: f.unit.trim() || 'pcs',
+        allowsFraction: f.allowsFraction,
+        priceCents: price,
+        costCents: cost,
+        reorderLevel: reorder,
+        ...(product ? { active: f.active } : { openingStock: opening }),
+      },
+      {
+        onSuccess: async (saved) => {
+          // The product is already saved; a photo problem must not make the user redo the form.
+          if (photo.kind !== 'none') {
+            setUploading(true);
+            try {
+              const blob = photo.kind === 'file' ? await compressImage(photo.file) : null;
+              await photoApi.mutateAsync({ id: saved.id, blob });
+            } catch (err) {
+              toast.error(`Product saved, but the photo was not: ${err instanceof Error && !('status' in err) ? err.message : errorMessage(err)}`);
+            }
+            setUploading(false);
+          }
+          onDone();
+        },
+        onError: (err) => setError(errorMessage(err)),
+      },
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        {imagesEnabled ? (
+          <PhotoField currentUrl={product?.imageUrl ?? null} alt={product?.name ?? 'New product'} choice={photo} onChange={setPhoto} disabled={save.isPending || uploading} />
+        ) : (
+          <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">Product photos are off. Add the Cloudflare R2 settings to the server&apos;s .env to turn them on.</p>
+        )}
+      </div>
+      <Field label="Name" className="sm:col-span-2">
+        {(p) => <Input {...p} required maxLength={160} value={f.name} onChange={(e) => set('name', e.target.value)} />}
+      </Field>
+      <Field label="SKU" hint="Your own product code">
+        {(p) => <Input {...p} required maxLength={40} value={f.sku} onChange={(e) => set('sku', e.target.value)} />}
+      </Field>
+      <Field label="Barcode" hint="Optional. Scanned at the till">
+        {(p) => <Input {...p} maxLength={64} value={f.barcode} onChange={(e) => set('barcode', e.target.value)} />}
+      </Field>
+      <Field label="Selling price (KES)">
+        {(p) => <MoneyInput {...p} required value={price} onChange={setPrice} />}
+      </Field>
+      <Field label="Cost price (KES)">{(p) => <MoneyInput {...p} value={cost} onChange={setCost} />}</Field>
+      <Field label="Category">
+        {(p) => (
+          <Select {...p} value={f.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
+            <option value="">No category</option>
+            {categories.data?.filter((c) => c.active || c.id === product?.categoryId).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        )}
+      </Field>
+      <Field label="Unit" hint="pcs, kg, litre…">
+        {(p) => <Input {...p} required maxLength={20} value={f.unit} onChange={(e) => set('unit', e.target.value)} />}
+      </Field>
+      <Field label="Reorder level" hint="Warn when stock falls to this. 0 = no warning">
+        {(p) => <Input {...p} inputMode="decimal" value={f.reorderLevel} onChange={(e) => set('reorderLevel', e.target.value)} />}
+      </Field>
+      {!product && (
+        <Field label="Opening stock">
+          {(p) => <Input {...p} inputMode="decimal" value={f.openingStock} onChange={(e) => set('openingStock', e.target.value)} />}
+        </Field>
+      )}
+      <label className="flex min-h-11 items-center gap-2 text-sm">
+        <input type="checkbox" className="size-4" checked={f.allowsFraction} onChange={(e) => set('allowsFraction', e.target.checked)} />
+        Sold by weight or volume (allows decimals, e.g. 1.5 kg)
+      </label>
+      {product && (
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" className="size-4" checked={f.active} onChange={(e) => set('active', e.target.checked)} />
+          Active (available to sell)
+        </label>
+      )}
+      {error && <div className="sm:col-span-2"><ErrorNotice message={error} /></div>}
+      <div className="flex justify-end gap-2 sm:col-span-2">
+        <Button variant="outline" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={save.isPending || uploading}>
+          {(save.isPending || uploading) && <Loader2 className="animate-spin" />} {product ? 'Save changes' : 'Create product'}
+        </Button>
+      </div>
+    </form>
+  );
+}
