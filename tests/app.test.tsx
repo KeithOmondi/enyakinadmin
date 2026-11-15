@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { AxiosAdapter, AxiosResponse } from 'axios';
 import { RouterProvider, createMemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -75,8 +75,9 @@ describe('admin app', () => {
 
   it('lists products with their stock and a low-stock flag', async () => {
     mount('/products');
-    expect(await screen.findByText('Tilapia')).toBeTruthy();
-    expect(screen.getByText('Low')).toBeTruthy();
+    // One card per product family; opening it lists the items.
+    fireEvent.click(await screen.findByRole('button', { name: /Open Tilapia/ }));
+    expect(await screen.findByText('Low')).toBeTruthy();
     expect(screen.getByText(/KES\s?350\.00/)).toBeTruthy();
   });
 

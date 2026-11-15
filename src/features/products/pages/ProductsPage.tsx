@@ -1,11 +1,14 @@
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   Badge, Button, EmptyState, ErrorNotice, Input, Modal, PageHeader, Pagination, Select, Spinner, Table,
 } from '@/components/ui';
 import { ProductThumb } from '@/components/ProductThumb';
 import { errorMessage, fmtQty } from '@/lib/format';
 import { useDebounced } from '@/lib/hooks';
+import { GroupGrid } from '@/components/GroupGrid';
+import { groupProducts, pointOf, productGroupName } from '@/lib/groups';
 import { formatKes } from '@/lib/money';
 import type { Product } from '@/lib/types';
 import { useCategories, useProducts } from '../api';
@@ -18,15 +21,25 @@ export function ProductsPage() {
   const [lowStock, setLowStock] = useState(false);
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Product | 'new' | null>(null);
+  const [params, setParams] = useSearchParams();
+  const openGroup = params.get('group');
   const search = useDebounced(q.trim());
+  // Without a search the page shows one card per product family; opening one lists its items.
+  const grouped = !search;
   const categories = useCategories();
   const products = useProducts({
     ...(search ? { q: search } : {}),
     ...(categoryId ? { categoryId } : {}),
     status,
     ...(lowStock ? { lowStock: true } : {}),
-    page,
-  });
+    page: grouped ? 1 : page,
+  }, grouped ? 200 : 20);
+  const groups = useMemo(() => groupProducts(products.data?.items ?? []), [products.data]);
+  const current = openGroup ? groups.find((g) => g.key === openGroup) : undefined;
+  const rows = grouped && openGroup ? (current?.items ?? []) : (products.data?.items ?? []);
+  // Inside a family the Point and Category columns already say what the full name repeats.
+  const inGroup = grouped && Boolean(openGroup);
+  const showPoint = rows.some((p) => pointOf(p.name) !== null);
   const reset = <T,>(set: (v: T) => void) => (v: T) => {
     set(v);
     setPage(1);
@@ -35,12 +48,19 @@ export function ProductsPage() {
   return (
     <>
       <PageHeader
-        title="Products"
-        description="What you sell, its price and how much is on the shelf."
+        title={grouped && current ? current.name : 'Products'}
+        description={grouped && current ? `${current.items.length} item${current.items.length === 1 ? '' : 's'} in this product.` : 'What you sell, its price and how much is on the shelf.'}
         actions={
+          <div className="flex gap-2">
+            {grouped && openGroup && (
+              <Button variant="outline" onClick={() => setParams({})}>
+                <ArrowLeft /> All products
+              </Button>
+            )}
           <Button onClick={() => setEditing('new')}>
             <Plus /> New product
           </Button>
+          </div>
         }
       />
       <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -64,14 +84,17 @@ export function ProductsPage() {
         <Spinner />
       ) : products.isError ? (
         <ErrorNotice message={errorMessage(products.error)} onRetry={() => void products.refetch()} />
-      ) : products.data.items.length === 0 ? (
+      ) : products.data.items.length === 0 || (grouped && openGroup && !current) ? (
         <EmptyState title="No products found">Try a different search, or add your first product.</EmptyState>
+      ) : grouped && !openGroup ? (
+        <GroupGrid groups={groups} onOpen={(g) => setParams({ group: g.key })} />
       ) : (
         <>
           <Table>
             <thead>
               <tr>
                 <th>Product</th>
+                {showPoint && <th>Point</th>}
                 <th>Category</th>
                 <th className="text-right">Price</th>
                 <th className="text-right">Cost</th>
@@ -80,17 +103,18 @@ export function ProductsPage() {
               </tr>
             </thead>
             <tbody>
-              {products.data.items.map((p) => (
+              {rows.map((p) => (
                 <tr key={p.id}>
                   <td>
                     <div className="flex items-center gap-3">
                       <ProductThumb url={p.imageUrl} alt="" className="size-11 rounded-md" />
                       <div>
-                        <div className="font-medium">{p.name} {!p.active && <Badge>Inactive</Badge>}</div>
+                        <div className="font-medium">{inGroup ? productGroupName(p.name) : p.name} {!p.active && <Badge>Inactive</Badge>}</div>
                         <div className="text-xs text-muted-foreground">{p.sku}{p.barcode ? ` · ${p.barcode}` : ''}</div>
                       </div>
                     </div>
                   </td>
+                  {showPoint && <td className="font-medium tabular-nums">{pointOf(p.name) ?? '—'}</td>}
                   <td>{p.categoryName ?? '—'}</td>
                   <td className="text-right tabular-nums">{formatKes(p.priceCents)}</td>
                   <td className="text-right tabular-nums">{formatKes(p.costCents)}</td>
@@ -104,7 +128,7 @@ export function ProductsPage() {
               ))}
             </tbody>
           </Table>
-          <Pagination page={page} pageSize={products.data.pageSize} total={products.data.total} onPage={setPage} />
+          {!grouped && <Pagination page={page} pageSize={products.data.pageSize} total={products.data.total} onPage={setPage} />}
         </>
       )}
 

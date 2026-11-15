@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   Badge, Button, Card, EmptyState, ErrorNotice, Input, Modal, PageHeader, Pagination, Spinner, Table, cn,
 } from '@/components/ui';
+import { GroupGrid } from '@/components/GroupGrid';
 import { useProducts } from '@/features/products/api';
 import { errorMessage, fmtDateTime, fmtQty, titleCase } from '@/lib/format';
+import { groupProducts, pointOf, productGroupName } from '@/lib/groups';
 import { useDebounced } from '@/lib/hooks';
 import { formatKes } from '@/lib/money';
 import type { Product } from '@/lib/types';
@@ -24,8 +28,17 @@ function StockTab() {
   const [lowOnly, setLowOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [adjusting, setAdjusting] = useState<Product | null>(null);
+  const [params, setParams] = useSearchParams();
+  const openGroup = params.get('group');
   const search = useDebounced(q.trim());
-  const products = useProducts({ ...(search ? { q: search } : {}), status: 'active', ...(lowOnly ? { lowStock: true } : {}), page });
+  // Without a search: one card per product family; opening one lists its items.
+  const grouped = !search;
+  const products = useProducts({ ...(search ? { q: search } : {}), status: 'active', ...(lowOnly ? { lowStock: true } : {}), page: grouped ? 1 : page }, grouped ? 200 : 20);
+  const groups = useMemo(() => groupProducts(products.data?.items ?? []), [products.data]);
+  const current = openGroup ? groups.find((g) => g.key === openGroup) : undefined;
+  const inGroup = grouped && Boolean(openGroup);
+  const rows = inGroup ? (current?.items ?? []) : (products.data?.items ?? []);
+  const showPoint = rows.some((p) => pointOf(p.name) !== null);
 
   return (
     <>
@@ -36,18 +49,28 @@ function StockTab() {
           Low stock only
         </label>
       </div>
+      {inGroup && (
+        <div className="mb-3 flex items-center gap-3">
+          <Button variant="outline" className="min-h-9" onClick={() => setParams({})}><ArrowLeft /> All products</Button>
+          <h2 className="text-lg font-semibold">{current?.name ?? 'Product'}</h2>
+        </div>
+      )}
       {products.isPending ? <Spinner /> : products.isError ? (
         <ErrorNotice message={errorMessage(products.error)} onRetry={() => void products.refetch()} />
-      ) : products.data.items.length === 0 ? (
+      ) : products.data.items.length === 0 || (inGroup && !current) ? (
         <EmptyState title="Nothing to show" />
+      ) : grouped && !openGroup ? (
+        <GroupGrid groups={groups} onOpen={(g) => setParams({ group: g.key })} />
       ) : (
         <>
           <Table>
-            <thead><tr><th>Product</th><th className="text-right">In stock</th><th className="text-right">Reorder at</th><th className="text-right">Stock value</th><th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr><th>Product</th>{showPoint && <th>Point</th>}{inGroup && <th>Category</th>}<th className="text-right">In stock</th><th className="text-right">Reorder at</th><th className="text-right">Stock value</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
-              {products.data.items.map((p) => (
+              {rows.map((p) => (
                 <tr key={p.id}>
-                  <td><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground">{p.sku}</div></td>
+                  <td><div className="font-medium">{inGroup ? productGroupName(p.name) : p.name}</div><div className="text-xs text-muted-foreground">{p.sku}</div></td>
+                  {showPoint && <td className="font-medium tabular-nums">{pointOf(p.name) ?? '—'}</td>}
+                  {inGroup && <td>{p.categoryName ?? '—'}</td>}
                   <td className="text-right tabular-nums">
                     {fmtQty(p.quantity)} {p.unit} {p.quantity === 0 ? <Badge tone="danger">Out</Badge> : p.lowStock ? <Badge tone="warning">Low</Badge> : null}
                   </td>
@@ -58,7 +81,7 @@ function StockTab() {
               ))}
             </tbody>
           </Table>
-          <Pagination page={page} pageSize={products.data.pageSize} total={products.data.total} onPage={setPage} />
+          {!grouped && <Pagination page={page} pageSize={products.data.pageSize} total={products.data.total} onPage={setPage} />}
         </>
       )}
       <Modal open={adjusting !== null} onClose={() => setAdjusting(null)} title="Adjust stock">
