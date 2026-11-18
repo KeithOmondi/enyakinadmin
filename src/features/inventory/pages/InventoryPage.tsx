@@ -6,8 +6,9 @@ import {
 } from '@/components/ui';
 import { GroupGrid } from '@/components/GroupGrid';
 import { useProducts } from '@/features/products/api';
-import { errorMessage, fmtDateTime, fmtQty, titleCase } from '@/lib/format';
-import { groupProducts, pointOf, productGroupName } from '@/lib/groups';
+import { errorMessage, fmtDateTime, fmtQty } from '@/lib/format';
+import { groupProducts, pointOf, shortName } from '@/lib/groups';
+import { MOVEMENT_LABEL, STOCK_IN_TYPES, balanceBefore } from '@/lib/movements';
 import { useDebounced } from '@/lib/hooks';
 import { formatKes } from '@/lib/money';
 import type { Product } from '@/lib/types';
@@ -68,7 +69,7 @@ function StockTab() {
             <tbody>
               {rows.map((p) => (
                 <tr key={p.id}>
-                  <td><div className="font-medium">{inGroup ? productGroupName(p.name) : p.name}</div><div className="text-xs text-muted-foreground">{p.sku}</div></td>
+                  <td><div className="font-medium">{inGroup ? shortName(p, rows) : p.name}</div><div className="text-xs text-muted-foreground">{p.sku}</div></td>
                   {showPoint && <td className="font-medium tabular-nums">{pointOf(p.name) ?? '—'}</td>}
                   {inGroup && <td>{p.categoryName ?? '—'}</td>}
                   <td className="text-right tabular-nums">
@@ -91,7 +92,7 @@ function StockTab() {
   );
 }
 
-const TYPES = ['opening', 'purchase', 'sale', 'void', 'adjustment'];
+const TYPES = Object.keys(MOVEMENT_LABEL) as (keyof typeof MOVEMENT_LABEL)[];
 
 function MovementsTab() {
   const [type, setType] = useState('');
@@ -101,8 +102,8 @@ function MovementsTab() {
     <>
       <div className="mb-4">
         <select aria-label="Type" className="min-h-11 rounded-md border border-border bg-background px-3 text-sm" value={type} onChange={(e) => { setType(e.target.value); setPage(1); }}>
-          <option value="">All movement types</option>
-          {TYPES.map((t) => <option key={t} value={t}>{titleCase(t)}</option>)}
+          <option value="">All stock changes</option>
+          {TYPES.map((t) => <option key={t} value={t}>{MOVEMENT_LABEL[t]}</option>)}
         </select>
       </div>
       {moves.isPending ? <Spinner /> : moves.isError ? (
@@ -112,15 +113,16 @@ function MovementsTab() {
       ) : (
         <>
           <Table>
-            <thead><tr><th>When</th><th>Product</th><th>Type</th><th className="text-right">Change</th><th className="text-right">Balance</th><th>Note</th><th>By</th></tr></thead>
+            <thead><tr><th>When</th><th>Product</th><th>What happened</th><th className="text-right">Current stock (before)</th><th className="text-right">Added / removed</th><th className="text-right">Total (after)</th><th>Note</th><th>By</th></tr></thead>
             <tbody>
               {moves.data.items.map((m) => (
                 <tr key={m.id}>
                   <td className="whitespace-nowrap">{fmtDateTime(m.createdAt)}</td>
                   <td>{m.productName}</td>
-                  <td>{titleCase(m.type)}</td>
-                  <td className={cn('text-right tabular-nums', m.quantity < 0 ? 'text-destructive' : 'text-success')}>{m.quantity > 0 ? '+' : ''}{fmtQty(m.quantity)}</td>
-                  <td className="text-right tabular-nums">{fmtQty(m.balanceAfter)}</td>
+                  <td>{STOCK_IN_TYPES.includes(m.type) ? <Badge tone="success">{MOVEMENT_LABEL[m.type]}</Badge> : MOVEMENT_LABEL[m.type]}</td>
+                  <td className="text-right tabular-nums">{fmtQty(balanceBefore(m))}</td>
+                  <td className={cn('text-right font-medium tabular-nums', m.quantity < 0 ? 'text-destructive' : 'text-success')}>{m.quantity > 0 ? '+' : ''}{fmtQty(m.quantity)}</td>
+                  <td className="text-right font-semibold tabular-nums">{fmtQty(m.balanceAfter)}</td>
                   <td className="text-muted-foreground">{m.note ?? ''}</td>
                   <td>{m.userName ?? '—'}</td>
                 </tr>
@@ -140,7 +142,7 @@ export function InventoryPage() {
   const s = summary.data;
   return (
     <>
-      <PageHeader title="Inventory" description="Current stock and every change that led to it." />
+      <PageHeader title="Inventory" description="What is on the shelf now, and every change that got it there: what was added or removed, by whom, and the new total." />
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Products" value={s ? String(s.products) : '…'} />
         <Stat label="Stock value (at cost)" value={s ? formatKes(s.valueCents) : '…'} />

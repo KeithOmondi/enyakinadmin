@@ -8,7 +8,7 @@ import { ProductThumb } from '@/components/ProductThumb';
 import { errorMessage, fmtQty } from '@/lib/format';
 import { useDebounced } from '@/lib/hooks';
 import { GroupGrid } from '@/components/GroupGrid';
-import { groupProducts, pointOf, productGroupName } from '@/lib/groups';
+import { groupProducts, pointOf, shortName } from '@/lib/groups';
 import { formatKes } from '@/lib/money';
 import type { Product } from '@/lib/types';
 import { useCategories, useProducts } from '../api';
@@ -109,7 +109,7 @@ export function ProductsPage() {
                     <div className="flex items-center gap-3">
                       <ProductThumb url={p.imageUrl} alt="" className="size-11 rounded-md" />
                       <div>
-                        <div className="font-medium">{inGroup ? productGroupName(p.name) : p.name} {!p.active && <Badge>Inactive</Badge>}</div>
+                        <div className="font-medium">{inGroup ? shortName(p, rows) : p.name} {!p.active && <Badge>Inactive</Badge>}</div>
                         <div className="text-xs text-muted-foreground">{p.sku}{p.barcode ? ` · ${p.barcode}` : ''}</div>
                       </div>
                     </div>
