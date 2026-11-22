@@ -95,11 +95,14 @@ export function ProductsPage() {
             <thead>
               <tr>
                 <th>Product</th>
+                <th>SKU</th>
+                <th>Barcode</th>
                 {showPoint && <th>Point</th>}
                 <th>Category</th>
                 <th className="text-right">Price</th>
                 <th className="text-right">Cost</th>
                 <th className="text-right">In stock</th>
+                <th>Unit</th>
                 <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -108,20 +111,20 @@ export function ProductsPage() {
                 <tr key={p.id}>
                   <td>
                     <div className="flex items-center gap-3">
-                      <ProductThumb url={p.imageUrl} alt="" className="size-11 rounded-md" />
-                      <div>
-                        <div className="font-medium">{inGroup ? shortName(p, rows) : p.name} {!p.active && <Badge>Inactive</Badge>}</div>
-                        <div className="text-xs text-muted-foreground">{p.sku}{p.barcode ? ` · ${p.barcode}` : ''}</div>
-                      </div>
+                      <ProductThumb url={p.imageUrl} alt="" className="size-11 shrink-0 rounded-md" />
+                      <span className="font-medium">{inGroup ? shortName(p, rows) : p.name} {!p.active && <Badge>Inactive</Badge>}</span>
                     </div>
                   </td>
+                  <td className="whitespace-nowrap tabular-nums text-muted-foreground">{p.sku}</td>
+                  <td className="whitespace-nowrap tabular-nums text-muted-foreground">{p.barcode ?? '—'}</td>
                   {showPoint && <td className="font-medium tabular-nums">{pointOf(p.name) ?? '—'}</td>}
                   <td>{inGroup ? (p.parentCategoryName ? p.categoryName : '—') : categoryPath(p)}</td>
                   <td className="text-right tabular-nums">{formatKes(p.priceCents)}</td>
                   <td className="text-right tabular-nums">{formatKes(p.costCents)}</td>
-                  <td className="text-right tabular-nums">
-                    {fmtQty(p.quantity)} {p.unit} {p.lowStock && <Badge tone="warning">Low</Badge>}
+                  <td className="whitespace-nowrap text-right tabular-nums">
+                    {fmtQty(p.quantity)} {p.lowStock && <Badge tone="warning">Low</Badge>}
                   </td>
+                  <td className="text-muted-foreground">{p.unit}</td>
                   <td className="text-right">
                     <Button variant="outline" className="min-h-9" onClick={() => setEditing(p)}>Edit</Button>
                   </td>

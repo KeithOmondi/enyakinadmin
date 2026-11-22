@@ -65,16 +65,18 @@ function StockTab() {
       ) : (
         <>
           <Table>
-            <thead><tr><th>Product</th>{showPoint && <th>Point</th>}{inGroup && <th>Category</th>}<th className="text-right">In stock</th><th className="text-right">Reorder at</th><th className="text-right">Stock value</th><th><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr><th>Product</th><th>SKU</th>{showPoint && <th>Point</th>}{inGroup && <th>Category</th>}<th className="text-right">In stock</th><th>Unit</th><th className="text-right">Reorder at</th><th className="text-right">Stock value</th><th><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {rows.map((p) => (
                 <tr key={p.id}>
-                  <td><div className="font-medium">{inGroup ? shortName(p, rows) : p.name}</div><div className="text-xs text-muted-foreground">{p.sku}</div></td>
+                  <td className="font-medium">{inGroup ? shortName(p, rows) : p.name}</td>
+                  <td className="whitespace-nowrap tabular-nums text-muted-foreground">{p.sku}</td>
                   {showPoint && <td className="font-medium tabular-nums">{pointOf(p.name) ?? '—'}</td>}
                   {inGroup && <td>{p.parentCategoryName ? p.categoryName : '—'}</td>}
-                  <td className="text-right tabular-nums">
-                    {fmtQty(p.quantity)} {p.unit} {p.quantity === 0 ? <Badge tone="danger">Out</Badge> : p.lowStock ? <Badge tone="warning">Low</Badge> : null}
+                  <td className="whitespace-nowrap text-right tabular-nums">
+                    {fmtQty(p.quantity)} {p.quantity === 0 ? <Badge tone="danger">Out</Badge> : p.lowStock ? <Badge tone="warning">Low</Badge> : null}
                   </td>
+                  <td className="text-muted-foreground">{p.unit}</td>
                   <td className="text-right tabular-nums">{p.reorderLevel > 0 ? fmtQty(p.reorderLevel) : '—'}</td>
                   <td className="text-right tabular-nums">{formatKes(Math.round(p.quantity * p.costCents))}</td>
                   <td className="text-right"><Button variant="outline" className="min-h-9" onClick={() => setAdjusting(p)}>Adjust</Button></td>
