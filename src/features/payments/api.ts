@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { MpesaRequest, MpesaRequestRow, Page } from '@/lib/types';
 
@@ -30,5 +30,68 @@ export function useMpesaRequests(p: { status?: string; unmatched?: boolean; page
     queryKey: ['mpesa', 'list', p],
     queryFn: async () => (await api.get<Page<MpesaRequestRow>>('/payments/mpesa/requests', { params: { ...p, pageSize: 25 } })).data,
     placeholderData: keepPreviousData,
+  });
+}
+
+// ---- connection settings (Safaricom Daraja keys, entered in the dashboard) --------------------------
+
+export interface MpesaSettings {
+  serverMode: 'off' | 'simulator' | 'daraja';
+  environment: 'sandbox' | 'production';
+  encryptionReady: boolean;
+  sharedConsumerAvailable: boolean;
+  /** dashboard: saved here. server: set on the server. none: not set up. */
+  source: 'dashboard' | 'server' | 'none';
+  configured: boolean;
+  enabled: boolean;
+  transactionType: 'till' | 'paybill';
+  shortcode: string;
+  partyB: string;
+  passkeyHint: string | null;
+  consumerKeyHint: string | null;
+  hasConsumerSecret: boolean;
+  updatedAt: string | null;
+  updatedByName: string | null;
+}
+
+export interface MpesaSettingsInput {
+  enabled: boolean;
+  transactionType: 'till' | 'paybill';
+  shortcode: string;
+  partyB?: string | null;
+  passkey?: string;
+  consumerKey?: string;
+  consumerSecret?: string;
+  password: string;
+}
+
+export function useMpesaSettings() {
+  return useQuery({
+    queryKey: ['mpesa', 'settings'],
+    queryFn: async () => (await api.get<MpesaSettings>('/payments/mpesa/settings')).data,
+  });
+}
+
+function useSettingsMutation<V>(fn: (v: V) => Promise<MpesaSettings>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (data) => {
+      qc.setQueryData(['mpesa', 'settings'], data);
+      // The till reads the payment mode from the business profile.
+      void qc.invalidateQueries({ queryKey: ['business'] });
+    },
+  });
+}
+
+export const useSaveMpesaSettings = () =>
+  useSettingsMutation(async (v: MpesaSettingsInput) => (await api.put<MpesaSettings>('/payments/mpesa/settings', v)).data);
+
+export const useRemoveMpesaSettings = () =>
+  useSettingsMutation(async (v: { password: string }) => (await api.post<MpesaSettings>('/payments/mpesa/settings/remove', v)).data);
+
+export function useTestMpesaSettings() {
+  return useMutation({
+    mutationFn: async () => (await api.post<{ ok: boolean; message: string }>('/payments/mpesa/settings/test')).data,
   });
 }

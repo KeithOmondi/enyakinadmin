@@ -5,6 +5,7 @@ import { errorMessage, fmtDateTime, titleCase } from '@/lib/format';
 import { formatKes } from '@/lib/money';
 import type { MpesaRequestRow } from '@/lib/types';
 import { useMpesaRequests } from '../api';
+import { MpesaSettingsCard } from '../components/MpesaSettingsCard';
 
 const TONE: Record<MpesaRequestRow['status'], 'neutral' | 'success' | 'warning' | 'danger'> = {
   pending: 'warning', paid: 'success', failed: 'danger', cancelled: 'neutral', timeout: 'neutral',
@@ -22,6 +23,7 @@ export function MpesaPage() {
         title="M-Pesa prompts"
         description="Every payment prompt sent to a customer's phone. A prompt that was paid but is not on any sale needs a look: the customer's money arrived but the sale was never completed."
       />
+      <MpesaSettingsCard />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Select aria-label="Status" className="max-w-48" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
           <option value="">All statuses</option>

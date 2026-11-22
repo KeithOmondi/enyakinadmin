@@ -31,6 +31,12 @@ function mockApi(role = 'admin') {
     '/inventory/summary': { products: 1, units: 2, valueCents: 40000, lowStock: 1, outOfStock: 0 },
     '/reports/summary': report,
     '/suppliers': { items: [{ id: 's1', name: 'Lake Traders', phone: null, email: null, notes: null, active: true }] },
+    '/payments/mpesa/requests': { items: [], total: 0, page: 1, pageSize: 25 },
+    '/payments/mpesa/settings': {
+      serverMode: 'daraja', environment: 'production', encryptionReady: true, sharedConsumerAvailable: false, source: 'dashboard',
+      configured: true, enabled: true, transactionType: 'paybill', shortcode: '600111', partyB: '', passkeyHint: '••••c919',
+      consumerKeyHint: '••••90ab', hasConsumerSecret: true, updatedAt: '2026-11-22T09:00:00Z', updatedByName: 'Dennis Keith',
+    },
     '/users': { items: [{ id: 'u1', email: 'a@b.c', name: 'Test User', role: 'admin', active: true }] },
   };
   const adapter: AxiosAdapter = (config) => {
@@ -79,6 +85,16 @@ describe('admin app', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Open Tilapia/ }));
     expect(await screen.findByText('Low')).toBeTruthy();
     expect(screen.getByText(/KES\s?350\.00/)).toBeTruthy();
+  });
+
+  it('shows the M-Pesa connection with secrets masked', async () => {
+    mount('/mpesa');
+    expect(await screen.findByText('Connection to Safaricom')).toBeTruthy();
+    expect(screen.getByText('Set up here')).toBeTruthy();
+    expect((screen.getByLabelText('Paybill number') as HTMLInputElement).value).toBe('600111');
+    // Secrets are never filled in: only a hint of the last characters is shown.
+    expect((screen.getByLabelText('Passkey') as HTMLInputElement).value).toBe('');
+    expect(screen.getByText((t) => t.includes('Saved (••••c919)'))).toBeTruthy();
   });
 
   it.each([
