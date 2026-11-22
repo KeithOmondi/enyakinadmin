@@ -6,7 +6,7 @@ import { MOVEMENT_LABEL, balanceBefore } from '@/lib/movements';
 import type { Product } from '@/lib/types';
 
 const product = {
-  id: 'p1', sku: 'S', barcode: null, name: 'Omena Point 1 - Fresh', categoryId: null, categoryName: null, unit: 'pcs',
+  id: 'p1', sku: 'S', barcode: null, name: 'Omena Point 1 - Fresh', categoryId: null, categoryName: null, parentCategoryId: null, parentCategoryName: null, unit: 'pcs',
   allowsFraction: false, priceCents: 6000, costCents: 4000, reorderLevel: 5, active: true, imageUrl: null, quantity: 20, lowStock: false,
 } as Product;
 

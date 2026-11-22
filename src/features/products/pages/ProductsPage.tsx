@@ -8,6 +8,7 @@ import { ProductThumb } from '@/components/ProductThumb';
 import { errorMessage, fmtQty } from '@/lib/format';
 import { useDebounced } from '@/lib/hooks';
 import { GroupGrid } from '@/components/GroupGrid';
+import { categoryPath, categoryTree } from '@/lib/categories';
 import { groupProducts, pointOf, shortName } from '@/lib/groups';
 import { formatKes } from '@/lib/money';
 import type { Product } from '@/lib/types';
@@ -67,7 +68,7 @@ export function ProductsPage() {
         <Input placeholder="Search name, SKU or barcode" aria-label="Search products" value={q} onChange={(e) => reset(setQ)(e.target.value)} />
         <Select aria-label="Category" value={categoryId} onChange={(e) => reset(setCategoryId)(e.target.value)}>
           <option value="">All categories</option>
-          {categories.data?.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {categoryTree(categories.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </Select>
         <Select aria-label="Status" value={status} onChange={(e) => reset(setStatus)(e.target.value as typeof status)}>
           <option value="active">Active</option>
@@ -115,7 +116,7 @@ export function ProductsPage() {
                     </div>
                   </td>
                   {showPoint && <td className="font-medium tabular-nums">{pointOf(p.name) ?? '—'}</td>}
-                  <td>{p.categoryName ?? '—'}</td>
+                  <td>{inGroup ? (p.parentCategoryName ? p.categoryName : '—') : categoryPath(p)}</td>
                   <td className="text-right tabular-nums">{formatKes(p.priceCents)}</td>
                   <td className="text-right tabular-nums">{formatKes(p.costCents)}</td>
                   <td className="text-right tabular-nums">

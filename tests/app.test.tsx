@@ -14,7 +14,7 @@ const meFor = (role: string) => ({
   timezone: 'Africa/Nairobi',
 });
 const product = {
-  id: 'p1', sku: 'T1', barcode: null, name: 'Tilapia', categoryId: null, categoryName: 'Fish', unit: 'pcs',
+  id: 'p1', sku: 'T1', barcode: null, name: 'Tilapia', categoryId: null, categoryName: 'Fish', parentCategoryId: null, parentCategoryName: null, unit: 'pcs',
   allowsFraction: false, priceCents: 35000, costCents: 20000, reorderLevel: 5, active: true, quantity: 2, lowStock: true,
 };
 const report = {

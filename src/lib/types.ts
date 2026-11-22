@@ -41,7 +41,11 @@ export interface Category {
   id: string;
   name: string;
   active: boolean;
+  /** The top-level category this sits under, or null for a top-level category. */
+  parentId: string | null;
+  parentName: string | null;
   productCount: number;
+  childCount: number;
 }
 
 export interface Supplier {
@@ -60,6 +64,9 @@ export interface Product {
   name: string;
   categoryId: string | null;
   categoryName: string | null;
+  /** Set when the product is in a sub-category: the top-level category it belongs to. */
+  parentCategoryId: string | null;
+  parentCategoryName: string | null;
   unit: string;
   allowsFraction: boolean;
   priceCents: number;

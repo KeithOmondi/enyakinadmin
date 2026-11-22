@@ -3,7 +3,7 @@ import { groupProducts, pointOf, productGroupName } from '../src/lib/groups';
 import type { Product } from '../src/lib/types';
 
 const p = (name: string, over: Partial<Product> = {}): Product => ({
-  id: name, sku: name, barcode: null, name, categoryId: null, categoryName: null, unit: 'pcs',
+  id: name, sku: name, barcode: null, name, categoryId: null, categoryName: null, parentCategoryId: null, parentCategoryName: null, unit: 'pcs',
   allowsFraction: false, priceCents: 10000, costCents: 5000, reorderLevel: 0, active: true,
   imageUrl: null, quantity: 10, lowStock: false, ...over,
 });
@@ -36,5 +36,27 @@ describe('product groups', () => {
     expect([t.minPriceCents, t.maxPriceCents]).toEqual([15000, 20000]);
     expect(t.lowStockCount).toBe(1);
     expect(groups[0]!.imageUrl).toBe('http://x/y.webp');
+  });
+});
+
+describe('grouping by category', () => {
+  const inCat = (name: string, topId: string, topName: string, subName: string | null): Product =>
+    p(name, subName ? { categoryId: `${topId}-${subName}`, categoryName: subName, parentCategoryId: topId, parentCategoryName: topName } : { categoryId: topId, categoryName: topName });
+
+  it('puts a product in the card of its category, whatever its name says', () => {
+    const groups = groupProducts([
+      inCat('Cap - Adults', 'cap', 'Cap', 'Adults'),
+      inCat('Cap - Kids', 'cap', 'Cap', 'Kids'),
+      inCat('Share this product Black Friday deal Grey 3-Pack Round Neck T-shirts', 'tee', 'T-shirts', null),
+      inCat('Plain Tee - Adults', 'tee', 'T-shirts', 'Adults'),
+    ]);
+    expect(groups.map((g) => g.name)).toEqual(['Cap', 'T-shirts']);
+    expect(groups.find((g) => g.name === 'T-shirts')!.items).toHaveLength(2);
+    expect(groups.find((g) => g.name === 'Cap')!.items).toHaveLength(2);
+  });
+
+  it('still groups products that have no category by their name', () => {
+    const groups = groupProducts([p('Tilapia Point 1 - Fresh'), p('Tilapia Point 2 - Fresh')]);
+    expect(groups.map((g) => g.name)).toEqual(['Tilapia']);
   });
 });

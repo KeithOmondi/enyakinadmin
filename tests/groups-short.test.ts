@@ -3,7 +3,7 @@ import { shortName, variantLabel } from '../src/lib/groups';
 import type { Product } from '../src/lib/types';
 
 const p = (name: string, categoryId: string | null): Product => ({
-  id: name, sku: name, barcode: null, name, categoryId, categoryName: null, unit: 'pcs', allowsFraction: false,
+  id: name, sku: name, barcode: null, name, categoryId, categoryName: null, parentCategoryId: null, parentCategoryName: null, unit: 'pcs', allowsFraction: false,
   priceCents: 1, costCents: 1, reorderLevel: 0, active: true, imageUrl: null, quantity: 1, lowStock: false,
 });
 

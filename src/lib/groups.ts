@@ -32,17 +32,31 @@ export interface ProductGroup {
   unit: string;
 }
 
-export const groupKey = (name: string): string => productGroupName(name).toLowerCase();
+/**
+ * The family a product belongs to. A product with a category belongs to its top-level category
+ * (its sub-category, if any, is the variant inside it). A product with no category falls back
+ * to the family its name suggests.
+ */
+export function familyKey(p: Product): string {
+  const top = p.parentCategoryId ?? p.categoryId;
+  return top ? `c-${top}` : `n-${productGroupName(p.name).toLowerCase()}`;
+}
+
+export function familyName(p: Product): string {
+  if (p.parentCategoryId) return p.parentCategoryName ?? productGroupName(p.name);
+  if (p.categoryId && p.categoryName) return p.categoryName;
+  return productGroupName(p.name);
+}
 
 export function groupProducts(products: Product[]): ProductGroup[] {
   const map = new Map<string, ProductGroup>();
   for (const p of products) {
-    const key = groupKey(p.name);
+    const key = familyKey(p);
     let g = map.get(key);
     if (!g) {
       g = {
         key,
-        name: productGroupName(p.name),
+        name: familyName(p),
         items: [],
         imageUrl: null,
         totalQuantity: 0,

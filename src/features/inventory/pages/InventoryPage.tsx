@@ -71,7 +71,7 @@ function StockTab() {
                 <tr key={p.id}>
                   <td><div className="font-medium">{inGroup ? shortName(p, rows) : p.name}</div><div className="text-xs text-muted-foreground">{p.sku}</div></td>
                   {showPoint && <td className="font-medium tabular-nums">{pointOf(p.name) ?? '—'}</td>}
-                  {inGroup && <td>{p.categoryName ?? '—'}</td>}
+                  {inGroup && <td>{p.parentCategoryName ? p.categoryName : '—'}</td>}
                   <td className="text-right tabular-nums">
                     {fmtQty(p.quantity)} {p.unit} {p.quantity === 0 ? <Badge tone="danger">Out</Badge> : p.lowStock ? <Badge tone="warning">Low</Badge> : null}
                   </td>
